@@ -1,0 +1,2903 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Self Ordering and Menu Preview System</title>
+  <style>
+    :root {
+      --ink: #17201c;
+      --muted: #68746e;
+      --line: #dfe6e1;
+      --soft: #f5f7f4;
+      --paper: #ffffff;
+      --brand: #0b7a61;
+      --brand-dark: #075947;
+      --accent: #e56f36;
+      --warn: #b54708;
+      --ready: #166534;
+      --shadow: 0 12px 32px rgba(24, 35, 30, 0.12);
+      --radius: 8px;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html, body {
+      max-width: 100%;
+      overflow-x: hidden;
+    }
+
+    body.modal-open {
+      overflow: hidden;
+      position: fixed;
+      width: 100%;
+    }
+
+    body {
+      margin: 0;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      color: var(--ink);
+      background: var(--soft);
+    }
+
+    button, input, textarea, select {
+      font: inherit;
+    }
+
+    button {
+      cursor: pointer;
+    }
+
+    .app-shell {
+      min-height: 100vh;
+      display: grid;
+      grid-template-rows: auto 1fr;
+    }
+
+    .topbar {
+      position: sticky;
+      top: 0;
+      z-index: 10;
+      background: rgba(255, 255, 255, 0.94);
+      border-bottom: 1px solid var(--line);
+      backdrop-filter: blur(14px);
+    }
+
+    .topbar-inner {
+      max-width: 1240px;
+      margin: 0 auto;
+      padding: 12px 18px;
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 16px;
+      align-items: center;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      min-width: 0;
+    }
+
+    .brand-mark {
+      width: 38px;
+      height: 38px;
+      display: grid;
+      place-items: center;
+      border-radius: 8px;
+      background: var(--brand);
+      color: white;
+      font-weight: 800;
+      flex: 0 0 auto;
+    }
+
+    .brand h1 {
+      margin: 0;
+      font-size: 18px;
+      line-height: 1.1;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .brand span {
+      display: block;
+      color: var(--muted);
+      font-size: 12px;
+      margin-top: 2px;
+    }
+
+    .mode-tabs {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px;
+      border: 1px solid var(--line);
+      background: #eef3ef;
+      border-radius: 8px;
+    }
+
+    .mode-tabs button {
+      border: 0;
+      background: transparent;
+      color: var(--muted);
+      padding: 8px 12px;
+      border-radius: 6px;
+      min-width: 82px;
+      min-height: 38px;
+    }
+
+    .mode-tabs button.active {
+      background: white;
+      color: var(--ink);
+      box-shadow: 0 3px 12px rgba(28, 43, 35, 0.08);
+      font-weight: 700;
+    }
+
+    main {
+      max-width: 1240px;
+      width: 100%;
+      margin: 0 auto;
+      padding: 20px 18px 40px;
+    }
+
+    .customer-layout {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 360px;
+      gap: 20px;
+      align-items: start;
+    }
+
+    .table-strip {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 14px;
+      align-items: center;
+      padding: 16px;
+      background: var(--paper);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      margin-bottom: 16px;
+    }
+
+    .table-strip h2, .panel h2, .section-title h2 {
+      margin: 0;
+      font-size: 20px;
+      line-height: 1.2;
+    }
+
+    .table-strip p, .panel p, .section-title p {
+      margin: 4px 0 0;
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    .table-control {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .table-control label {
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .table-control input {
+      width: 74px;
+      height: 38px;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      padding: 0 10px;
+      background: white;
+      color: var(--ink);
+    }
+
+    .locked-table-badge {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 38px;
+      padding: 8px 12px;
+      border-radius: 7px;
+      background: #e9f7f2;
+      color: var(--brand-dark);
+      border: 1px solid #b7e2d5;
+      font-weight: 800;
+      white-space: nowrap;
+    }
+
+    .category-bar {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(118px, 1fr));
+      gap: 8px;
+      padding: 2px 0 14px;
+    }
+
+    .category-select-wrap {
+      display: none;
+    }
+
+    .category-select-wrap select {
+      width: 100%;
+      min-height: 44px;
+      border: 1px solid var(--line);
+      border-radius: 7px;
+      background: white;
+      color: var(--ink);
+      padding: 0 12px;
+      font-weight: 800;
+    }
+
+    .category-bar button {
+      border: 1px solid var(--line);
+      background: white;
+      color: var(--ink);
+      padding: 8px 12px;
+      border-radius: 7px;
+      min-height: 38px;
+      width: 100%;
+    }
+
+    .category-bar button.active {
+      border-color: var(--brand);
+      color: var(--brand-dark);
+      background: #e9f7f2;
+      font-weight: 700;
+    }
+
+    .menu-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 14px;
+    }
+
+    .menu-card {
+      background: var(--paper);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      overflow: hidden;
+      display: grid;
+      grid-template-columns: 132px 1fr;
+      min-height: 150px;
+    }
+
+    .menu-card.soldout {
+      opacity: 0.58;
+    }
+
+    .menu-card img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      background: #d7ddd9;
+    }
+
+    .menu-info {
+      padding: 12px;
+      display: grid;
+      grid-template-rows: auto 1fr auto;
+      gap: 8px;
+      min-width: 0;
+    }
+
+    .menu-info h3 {
+      margin: 0;
+      font-size: 16px;
+      line-height: 1.2;
+      overflow-wrap: anywhere;
+    }
+
+    .menu-info p {
+      margin: 4px 0 0;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.35;
+      overflow-wrap: anywhere;
+    }
+
+    .price-row {
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
+      align-items: center;
+    }
+
+    .price {
+      font-weight: 800;
+      color: var(--brand-dark);
+    }
+
+    .add-btn, .primary-btn, .ghost-btn, .status-btn {
+      border: 0;
+      border-radius: 7px;
+      min-height: 38px;
+      padding: 8px 12px;
+      font-weight: 700;
+    }
+
+    .add-btn, .primary-btn {
+      background: var(--brand);
+      color: white;
+    }
+
+    .add-btn:disabled, .primary-btn:disabled {
+      background: #a9b8b1;
+      cursor: not-allowed;
+    }
+
+    .ghost-btn {
+      background: white;
+      color: var(--brand-dark);
+      border: 1px solid var(--line);
+    }
+
+    .cart-panel, .panel {
+      background: var(--paper);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+    }
+
+    .cart-panel {
+      position: fixed;
+      inset: 0;
+      z-index: 30;
+      max-height: none;
+      overflow: hidden;
+      display: none;
+      grid-template-rows: auto minmax(0, 1fr) auto;
+      border-radius: 0;
+      background: white;
+      min-height: 100vh;
+      min-height: 100dvh;
+    }
+
+    .cart-panel.open {
+      display: grid;
+    }
+
+    .panel {
+      padding: 16px;
+      margin-bottom: 16px;
+      box-shadow: none;
+    }
+
+    .cart-head {
+      padding: 16px;
+      border-bottom: 1px solid var(--line);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .cart-head h2 {
+      margin: 0;
+      font-size: 18px;
+    }
+
+    .cart-close {
+      display: none;
+    }
+
+    .cart-list {
+      max-height: none;
+      overflow: auto;
+    }
+
+    .cart-empty {
+      padding: 18px;
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    .cart-item {
+      padding: 14px 16px;
+      border-bottom: 1px solid var(--line);
+      display: grid;
+      gap: 10px;
+    }
+
+    .cart-title {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 12px;
+      align-items: start;
+      font-weight: 800;
+    }
+
+    .qty-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .icon-btn {
+      width: 34px;
+      height: 34px;
+      border-radius: 7px;
+      border: 1px solid var(--line);
+      background: white;
+      display: grid;
+      place-items: center;
+      font-size: 18px;
+      line-height: 1;
+    }
+
+    textarea {
+      width: 100%;
+      min-height: 64px;
+      resize: vertical;
+      border: 1px solid var(--line);
+      border-radius: 7px;
+      padding: 10px;
+      color: var(--ink);
+      background: #fbfcfb;
+    }
+
+    .cart-foot {
+      padding: 16px;
+      display: grid;
+      gap: 12px;
+      background: #fbfcfb;
+    }
+
+    .total-row {
+      display: flex;
+      justify-content: space-between;
+      font-weight: 900;
+      font-size: 18px;
+    }
+
+    .assistant-box {
+      display: grid;
+      gap: 10px;
+    }
+
+    .assistant-box input {
+      width: 100%;
+      height: 40px;
+      border: 1px solid var(--line);
+      border-radius: 7px;
+      padding: 0 10px;
+    }
+
+    .assistant-answer {
+      min-height: 44px;
+      padding: 10px;
+      background: #eef7f3;
+      color: var(--brand-dark);
+      border-radius: 7px;
+      font-size: 14px;
+      line-height: 1.4;
+    }
+
+    .view-order-btn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 100%;
+      min-height: 46px;
+      border: 0;
+      border-radius: 7px;
+      background: var(--brand);
+      color: white;
+      font-weight: 900;
+      font-size: 15px;
+      margin-bottom: 16px;
+    }
+
+    .view-order-btn:disabled {
+      background: #a9b8b1;
+      cursor: not-allowed;
+    }
+
+    .view-order-btn.hidden {
+      display: none;
+    }
+
+    .submitted-summary {
+      background: white;
+      border: 1px solid #b7e2d5;
+      border-left: 5px solid var(--brand);
+      border-radius: var(--radius);
+      padding: 14px;
+      margin-bottom: 14px;
+      display: none;
+      gap: 12px;
+    }
+
+    .submitted-summary.show {
+      display: grid;
+    }
+
+    .submitted-summary.sheet {
+      position: fixed;
+      inset: 0;
+      z-index: 30;
+      max-height: none;
+      overflow: auto;
+      box-shadow: var(--shadow);
+      border-radius: 0;
+      border-left-width: 0;
+      background: white;
+      min-height: 100vh;
+      min-height: 100dvh;
+    }
+
+    .submitted-summary.sheet:not(.open) {
+      display: none;
+    }
+
+    .summary-close {
+      margin-left: auto;
+    }
+
+    .submitted-summary h2 {
+      margin: 0;
+      font-size: 18px;
+    }
+
+    .submitted-summary p {
+      margin: 4px 0 0;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .submitted-items {
+      margin: 0;
+      padding: 0;
+      list-style: none;
+      line-height: 1.45;
+    }
+
+    .submitted-items li {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 12px;
+      padding: 12px 0;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .receipt-item-name {
+      font-weight: 800;
+    }
+
+    .submitted-total {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      padding-top: 14px;
+      font-weight: 900;
+      font-size: 18px;
+    }
+
+    .orders-toolbar {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 12px;
+      align-items: center;
+      margin-bottom: 14px;
+    }
+
+    .orders-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 14px;
+    }
+
+    .order-card {
+      background: white;
+      border: 1px solid var(--line);
+      border-left: 5px solid var(--accent);
+      border-radius: var(--radius);
+      padding: 14px;
+      display: grid;
+      gap: 12px;
+    }
+
+    .order-card.ready {
+      border-left-color: var(--ready);
+    }
+
+    .order-card.completed {
+      opacity: 0.66;
+      border-left-color: #708079;
+    }
+
+    .order-meta {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      align-items: start;
+    }
+
+    .order-meta h3 {
+      margin: 0;
+      font-size: 18px;
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 28px;
+      padding: 5px 9px;
+      border-radius: 999px;
+      background: #fff3e9;
+      color: var(--warn);
+      font-size: 12px;
+      font-weight: 800;
+      white-space: nowrap;
+    }
+
+    .badge.ready {
+      background: #e8f6ee;
+      color: var(--ready);
+    }
+
+    .badge.completed {
+      background: #eef1ef;
+      color: #54625c;
+    }
+
+    .order-items {
+      margin: 0;
+      padding-left: 18px;
+      color: var(--ink);
+      line-height: 1.45;
+    }
+
+    .order-items small {
+      display: block;
+      color: var(--muted);
+      margin-top: 2px;
+    }
+
+    .status-actions {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+    }
+
+    .status-btn {
+      background: #eef3ef;
+      color: var(--ink);
+      border: 1px solid var(--line);
+      padding-inline: 8px;
+    }
+
+    .status-btn.active {
+      background: var(--brand);
+      color: white;
+      border-color: var(--brand);
+    }
+
+    .close-table-btn {
+      border: 1px solid #f0c7ad;
+      background: #fff5ef;
+      color: var(--warn);
+      border-radius: 7px;
+      min-height: 38px;
+      padding: 8px 12px;
+      font-weight: 800;
+    }
+
+    .close-table-btn:disabled {
+      opacity: 0.45;
+      cursor: not-allowed;
+    }
+
+    .cashier-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 14px;
+    }
+
+    .cashier-card {
+      background: white;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      padding: 14px;
+      display: grid;
+      gap: 12px;
+    }
+
+    .cashier-card h3 {
+      margin: 0;
+      font-size: 18px;
+    }
+
+    .cashier-meta, .cashier-total {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .cashier-meta {
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .cashier-total {
+      padding-top: 10px;
+      border-top: 1px solid var(--line);
+      font-weight: 900;
+      font-size: 18px;
+    }
+
+    .table-wait-panel {
+      background: white;
+      border: 1px solid #f0c7ad;
+      border-left: 5px solid var(--warn);
+      border-radius: var(--radius);
+      padding: 16px;
+      margin-bottom: 14px;
+      display: none;
+    }
+
+    .table-wait-panel.show {
+      display: block;
+    }
+
+    .table-wait-panel h2 {
+      margin: 0;
+      font-size: 18px;
+    }
+
+    .table-wait-panel p {
+      margin: 6px 0 0;
+      color: var(--muted);
+      line-height: 1.45;
+    }
+
+    .admin-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 14px;
+    }
+
+    .qr-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 14px;
+      margin-bottom: 18px;
+    }
+
+    .qr-card {
+      background: white;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      padding: 14px;
+      display: grid;
+      grid-template-columns: 112px 1fr;
+      gap: 12px;
+      align-items: center;
+    }
+
+    .qr-card img {
+      width: 112px;
+      height: 112px;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      background: white;
+    }
+
+    .qr-card h3 {
+      margin: 0 0 6px;
+      font-size: 16px;
+    }
+
+    .qr-card a {
+      color: var(--brand-dark);
+      overflow-wrap: anywhere;
+      font-size: 13px;
+      line-height: 1.35;
+    }
+
+    .admin-item {
+      background: white;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      padding: 14px;
+      display: grid;
+      grid-template-columns: 80px 1fr auto;
+      gap: 12px;
+      align-items: center;
+    }
+
+    .admin-item img {
+      width: 80px;
+      height: 62px;
+      border-radius: 6px;
+      object-fit: cover;
+    }
+
+    .admin-item h3 {
+      margin: 0 0 4px;
+      font-size: 15px;
+    }
+
+    .admin-item p {
+      margin: 0;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .switch {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .switch input {
+      width: 18px;
+      height: 18px;
+      accent-color: var(--brand);
+    }
+
+    .toast {
+      position: fixed;
+      left: 50%;
+      bottom: 18px;
+      transform: translateX(-50%) translateY(90px);
+      background: var(--ink);
+      color: white;
+      padding: 12px 16px;
+      border-radius: 8px;
+      box-shadow: var(--shadow);
+      opacity: 0;
+      transition: 180ms ease;
+      z-index: 50;
+      max-width: min(520px, calc(100vw - 28px));
+      text-align: center;
+    }
+
+    .toast.show {
+      opacity: 1;
+      transform: translateX(-50%) translateY(0);
+    }
+
+    .hidden {
+      display: none !important;
+    }
+
+    @media (max-width: 1050px) {
+      .customer-layout {
+        grid-template-columns: 1fr;
+      }
+
+      .cart-panel {
+        position: fixed;
+        inset: 0;
+        display: none;
+      }
+
+      .cart-panel.open {
+        display: grid;
+      }
+
+      .orders-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+    }
+
+    @media (max-width: 760px) {
+      .topbar-inner {
+        grid-template-columns: 1fr;
+        padding: 10px 12px;
+        gap: 10px;
+      }
+
+      .mode-tabs {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        overflow: hidden;
+        width: 100%;
+      }
+
+      .mode-tabs button {
+        min-width: 0;
+        padding-inline: 8px;
+      }
+
+      main {
+        padding-inline: 12px;
+        padding-top: 12px;
+        padding-bottom: 150px;
+      }
+
+      .table-strip, .orders-toolbar {
+        grid-template-columns: minmax(0, 1fr) auto;
+      }
+
+      .table-strip {
+        padding: 12px;
+        margin-bottom: 12px;
+        gap: 10px;
+      }
+
+      .table-strip h2 {
+        font-size: 18px;
+      }
+
+      .table-strip p {
+        display: none;
+      }
+
+      .locked-table-badge {
+        min-height: 34px;
+        padding: 7px 10px;
+        font-size: 13px;
+      }
+
+      .category-select-wrap {
+        position: sticky;
+        top: 118px;
+        z-index: 8;
+        display: block;
+        padding: 8px 0 10px;
+        background: var(--soft);
+      }
+
+      .category-bar {
+        display: none;
+      }
+
+      .category-bar {
+        position: sticky;
+        top: 118px;
+        z-index: 8;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 6px;
+        padding: 8px 0 10px;
+        background: var(--soft);
+      }
+
+      .category-bar button {
+        min-height: 36px;
+        padding: 7px 6px;
+        font-size: 12px;
+        line-height: 1.1;
+      }
+
+      .menu-grid, .orders-grid, .admin-grid, .cashier-grid {
+        grid-template-columns: 1fr;
+        gap: 9px;
+      }
+
+      .qr-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .menu-card {
+        grid-template-columns: 104px minmax(0, 1fr);
+        min-height: 122px;
+        border-radius: 7px;
+      }
+
+      .brand h1 {
+        font-size: 16px;
+      }
+
+      .brand span {
+        display: none;
+      }
+
+      .cart-panel {
+        position: fixed;
+        inset: 0;
+        bottom: 0;
+        z-index: 30;
+        display: none;
+        grid-template-rows: auto minmax(0, 1fr) auto;
+        max-height: none;
+        box-shadow: 0 -10px 28px rgba(24, 35, 30, 0.16);
+        border-radius: 0;
+        border: 1px solid var(--line);
+        transform: none;
+        transition: transform 180ms ease;
+      }
+
+      .cart-panel.open {
+        display: grid;
+      }
+
+      .cart-head {
+        display: flex;
+        padding: 12px 14px;
+      }
+
+      .cart-head h2 {
+        font-size: 16px;
+      }
+
+      .cart-head p {
+        margin: 2px 0 0;
+        font-size: 12px;
+      }
+
+      .cart-close {
+        display: grid;
+        flex: 0 0 auto;
+      }
+
+      .cart-list {
+        display: block;
+        max-height: none;
+      }
+
+      .cart-foot {
+        padding: 12px 14px calc(12px + env(safe-area-inset-bottom));
+      }
+
+      .cart-foot .primary-btn {
+        min-height: 48px;
+        font-size: 16px;
+      }
+
+      .total-row span:first-child {
+        color: var(--muted);
+        font-size: 12px;
+        font-weight: 800;
+      }
+
+      .view-order-btn {
+        position: fixed;
+        left: 14px;
+        right: 14px;
+        bottom: var(--mobile-safe-bottom, 72px);
+        z-index: 20;
+        width: auto;
+        min-height: 48px;
+        border: 0;
+        border-radius: 999px;
+        background: var(--brand);
+        color: white;
+        box-shadow: 0 10px 26px rgba(11, 122, 97, 0.28);
+        font-weight: 900;
+        font-size: 16px;
+        margin: 0;
+      }
+
+      .view-order-btn:disabled {
+        background: #a9b8b1;
+        box-shadow: none;
+      }
+
+      .view-order-btn.hidden {
+        display: none;
+      }
+
+      .submitted-summary.sheet {
+        inset: 0;
+        bottom: 0;
+        max-height: none;
+        border-radius: 0;
+        border-left-width: 0;
+        padding: 18px 16px calc(24px + env(safe-area-inset-bottom));
+        overflow: auto;
+      }
+
+      aside .panel {
+        display: none;
+      }
+    }
+
+    @media (max-width: 460px) {
+      .menu-card {
+        grid-template-columns: 92px minmax(0, 1fr);
+        min-height: 116px;
+      }
+
+      .menu-card img {
+        height: 100%;
+      }
+
+      .menu-info {
+        padding: 9px;
+        gap: 5px;
+      }
+
+      .menu-info h3 {
+        font-size: 14px;
+      }
+
+      .menu-info p {
+        font-size: 11px;
+        line-height: 1.25;
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+      }
+
+      .menu-info > p {
+        display: none;
+      }
+
+      .price-row {
+        align-items: stretch;
+        gap: 8px;
+      }
+
+      .add-btn {
+        min-width: 62px;
+        min-height: 38px;
+        padding-inline: 8px;
+      }
+
+      .price {
+        align-self: center;
+        font-size: 14px;
+      }
+
+      .admin-item {
+        grid-template-columns: 68px 1fr;
+      }
+
+      .qr-card {
+        grid-template-columns: 92px 1fr;
+      }
+
+      .qr-card img {
+        width: 92px;
+        height: 92px;
+      }
+
+      .admin-item .switch {
+        grid-column: 1 / -1;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="app-shell">
+    <header class="topbar">
+      <div class="topbar-inner">
+        <div class="brand">
+          <div class="brand-mark">SO</div>
+          <div>
+            <h1>Self Ordering and Menu Preview System</h1>
+            <span>Digital ordering, kitchen queue, and customer status assistant</span>
+          </div>
+        </div>
+        <nav class="mode-tabs" aria-label="System views">
+          <button class="active" data-view="customer" title="Customer ordering page">Menu</button>
+          <button data-view="kitchen" title="Kitchen display page">Kitchen</button>
+          <button data-view="cashier" title="Cashier payment and table closing page">Cashier</button>
+          <button data-view="admin" title="Menu availability page">Admin</button>
+        </nav>
+      </div>
+    </header>
+
+    <main>
+      <section id="customerView" class="customer-layout">
+        <div>
+          <div class="table-strip">
+            <div>
+              <h2 id="tableTitle">Table 15</h2>
+              <p>This order is locked to the table QR code. Customers cannot change the table number.</p>
+            </div>
+            <div class="locked-table-badge" id="lockedTableBadge">QR Table 15</div>
+          </div>
+          <div class="table-wait-panel" id="tableWaitPanel">
+            <h2>Please Wait</h2>
+            <p>The previous customer at this table is finishing payment. A staff member will mark this table ready before new orders can be placed.</p>
+          </div>
+          <div class="submitted-summary" id="submittedSummary"></div>
+
+          <div class="category-select-wrap">
+            <select id="categorySelect" aria-label="Menu category"></select>
+          </div>
+          <div class="category-bar" id="categoryBar"></div>
+          <div class="menu-grid" id="menuGrid"></div>
+        </div>
+
+        <aside>
+          <div class="cart-panel">
+            <div class="cart-head">
+              <div>
+                <h2>Your Order</h2>
+                <p id="cartSubtitle">Table 15 order draft</p>
+              </div>
+              <button class="icon-btn cart-close" id="closeCart" title="Close order summary">×</button>
+            </div>
+            <div class="cart-list" id="cartList"></div>
+            <div class="cart-foot">
+              <div class="total-row">
+                <span id="cartSummaryLabel">Total</span>
+                <span id="cartTotal">RM 0.00</span>
+              </div>
+              <button class="primary-btn" id="submitOrder" disabled>Send to Kitchen</button>
+            </div>
+          </div>
+          <button class="view-order-btn" id="viewOrderButton" disabled>View Order</button>
+
+          <div class="panel" style="margin-top:16px;">
+            <div class="section-title">
+              <h2>Order Assistant</h2>
+              <p>Ask about queue or waiting time after sending an order.</p>
+            </div>
+            <div class="assistant-box" style="margin-top:12px;">
+              <input id="assistantQuestion" placeholder="Example: How long will my order take?" />
+              <button class="ghost-btn" id="askAssistant">Ask</button>
+              <div class="assistant-answer" id="assistantAnswer">Your table estimate will appear here.</div>
+            </div>
+          </div>
+        </aside>
+      </section>
+
+      <section id="kitchenView" class="hidden">
+        <div class="orders-toolbar">
+          <div class="section-title">
+            <h2>Kitchen Display</h2>
+            <p>Kitchen updates preparation status only.</p>
+          </div>
+          <span></span>
+        </div>
+        <div class="orders-grid" id="ordersGrid"></div>
+      </section>
+
+      <section id="cashierView" class="hidden">
+        <div class="orders-toolbar">
+          <div class="section-title">
+            <h2>Cashier</h2>
+            <p>Review bills, confirm payment, and close tables for the next customer.</p>
+          </div>
+        </div>
+        <div class="cashier-grid" id="cashierGrid"></div>
+      </section>
+
+      <section id="adminView" class="hidden">
+        <div class="panel">
+          <div class="section-title">
+            <h2>Table QR Links</h2>
+            <p>Print or save one QR for each table. Each QR opens the menu with a fixed table number.</p>
+          </div>
+        </div>
+        <div class="qr-grid" id="qrGrid"></div>
+
+        <div class="panel">
+          <div class="section-title">
+            <h2>Menu Availability</h2>
+            <p>Mark items as available or sold out. Changes update the customer menu immediately in this browser.</p>
+          </div>
+        </div>
+        <div class="admin-grid" id="adminGrid"></div>
+      </section>
+    </main>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <script>
+    const storageKey = "selfOrderingMvpStateBeachRestaurant2026Tables21";
+    const tableCount = 21;
+    const localServerBaseUrl = "http://localhost:8080/self-ordering-system.html";
+    const usesBackend = window.location.protocol === "http:" || window.location.protocol === "https:";
+    const apiBase = usesBackend ? window.location.origin : "";
+
+    const starterMenu = [
+      {
+        id: "roti-canai",
+        name: "Roti Canai",
+        category: "Breakfast",
+        price: 8,
+        minutes: 8,
+        available: true,
+        description: "Flaky Malaysian flatbread served with dhal curry and sambal. 2 pcs.",
+        image: "https://images.unsplash.com/photo-1630409346699-79481a51f904?auto=format&fit=crop&w=600&q=80"
+      },
+      {
+        id: "roti-canai-telur",
+        name: "Roti Canai Telur",
+        category: "Breakfast",
+        price: 10,
+        minutes: 9,
+        available: true,
+        description: "Roti canai layered with egg, served with dhal curry and sambal. 2 pcs.",
+        image: "https://images.unsplash.com/photo-1630409346699-79481a51f904?auto=format&fit=crop&w=600&q=80"
+      },
+      {
+        id: "nasi-lemak",
+        name: "Nasi Lemak",
+        category: "Breakfast",
+        price: 9,
+        minutes: 10,
+        available: true,
+        description: "Coconut milk rice with sambal, ikan bilis, peanuts, cucumber, and fried egg.",
+        image: "https://images.unsplash.com/photo-1604908176997-125f25cc6f3d?auto=format&fit=crop&w=600&q=80"
+      },
+      {
+        id: "nasi-lemak-fried-chicken",
+        name: "Nasi Lemak + Fried Chicken",
+        category: "Breakfast",
+        price: 15,
+        minutes: 14,
+        available: true,
+        description: "Nasi lemak served with one piece of fried chicken.",
+        image: "https://images.unsplash.com/photo-1604908176997-125f25cc6f3d?auto=format&fit=crop&w=600&q=80"
+      },
+      {
+        id: "lontong",
+        name: "Lontong",
+        category: "Breakfast",
+        price: 15,
+        minutes: 11,
+        available: true,
+        description: "Rice cake slices in turmeric coconut broth with vegetables.",
+        image: "https://images.unsplash.com/photo-1569058242253-92a9c755a0ec?auto=format&fit=crop&w=600&q=80"
+      },
+      {
+        id: "regency-english-breakfast",
+        name: "Regency English Breakfast",
+        category: "Breakfast",
+        price: 28,
+        minutes: 15,
+        available: true,
+        description: "Two eggs cooked your way with chicken sausage, potatoes, tomato, toast, and baked beans.",
+        image: "https://images.unsplash.com/photo-1533089860892-a7c6f0a88666?auto=format&fit=crop&w=600&q=80"
+      },
+      {
+        id: "eggs-benedict",
+        name: "Eggs Benedict",
+        category: "Breakfast",
+        price: 22,
+        minutes: 13,
+        available: true,
+        description: "Poached eggs on toasted bread with homemade hollandaise sauce.",
+        image: "https://images.unsplash.com/photo-1608039829572-78524f79c4c7?auto=format&fit=crop&w=600&q=80"
+      },
+      {
+        id: "kopitiam-toast-egg",
+        name: "Kopitiam Toast & Egg",
+        category: "Breakfast",
+        price: 12,
+        minutes: 8,
+        available: true,
+        description: "Half-boiled eggs with kaya and butter toast.",
+        image: "https://images.unsplash.com/photo-1484723091739-30a097e8f929?auto=format&fit=crop&w=600&q=80"
+      },
+      {
+        id: "pancakes",
+        name: "Pancakes",
+        category: "Breakfast",
+        price: 18,
+        minutes: 12,
+        available: true,
+        description: "Warm pancakes with honey syrup and mixed fresh berries.",
+        image: "https://images.unsplash.com/photo-1528207776546-365bb710ee93?auto=format&fit=crop&w=600&q=80"
+      },
+      {
+        id: "mushroom-soup",
+        name: "Mushroom Soup",
+        category: "Starter",
+        price: 16,
+        minutes: 8,
+        available: true,
+        description: "Creamy mushroom soup served with warm garlic bread.",
+        image: "https://images.unsplash.com/photo-1547592166-23ac45744acd?auto=format&fit=crop&w=600&q=80"
+      },
+      {
+        id: "fresh-mixed-salad",
+        name: "Fresh Mixed Salad",
+        category: "Starter",
+        price: 16,
+        minutes: 7,
+        available: true,
+        description: "Fresh garden salad tossed in lemon dressing.",
+        image: "https://images.unsplash.com/photo-1512621776951-a57141f2eefd?auto=format&fit=crop&w=600&q=80"
+      },
+      {
+        id: "fried-calamari",
+        name: "Fried Calamari",
+        category: "Bites",
+        price: 18,
+        minutes: 10,
+        available: true,
+        description: "Golden crispy battered squid served with dipping sauce.",
+        image: "https://images.unsplash.com/photo-1599487488170-d11ec9c172f0?auto=format&fit=crop&w=600&q=80"
+      },
+      {
+        id: "fried-prawns",
+        name: "Fried Prawns",
+        category: "Bites",
+        price: 20,
+        minutes: 10,
+        available: true,
+        description: "Golden crispy battered prawns served with dipping sauce.",
+        image: "https://images.unsplash.com/photo-1565680018434-b513d5e5fd47?auto=format&fit=crop&w=600&q=80"
+      },
+      {
+        id: "french-fries",
+        name: "French Fries",
+        category: "Bites",
+        price: 15,
+        minutes: 7,
+        available: true,
+        description: "Hot crunchy fries served with chilli sauce and mayonnaise.",
+        image: "https://images.unsplash.com/photo-1630384060421-cb20d0e0649d?auto=format&fit=crop&w=600&q=80"
+      },
+      {
+        id: "potato-wedges",
+        name: "Potato Wedges",
+        category: "Bites",
+        price: 15,
+        minutes: 8,
+        available: true,
+        description: "Thick cut potatoes seasoned and served with dipping sauce.",
+        image: "https://images.unsplash.com/photo-1633436375795-12b3b339712f?auto=format&fit=crop&w=600&q=80"
+      },
+      {
+        id: "keropok-lekor",
+        name: "Keropok Lekor",
+        category: "Bites",
+        price: 12,
+        minutes: 8,
+        available: true,
+        description: "Traditional deep-fried snack served with sweet chilli dipping sauce.",
+        image: "https://images.unsplash.com/photo-1606851091851-e8c8c0fca5ba?auto=format&fit=crop&w=600&q=80"
+      },
+      {
+        id: "keropok-ikan",
+        name: "Keropok Ikan",
+        category: "Bites",
+        price: 12,
+        minutes: 8,
+        available: true,
+        description: "Fish paste snack fried until crisp.",
+        image: "https://images.unsplash.com/photo-1606851091851-e8c8c0fca5ba?auto=format&fit=crop&w=600&q=80"
+      },
+      {
+        id: "onion-rings",
+        name: "Onion Rings",
+        category: "Bites",
+        price: 15,
+        minutes: 8,
+        available: true,
+        description: "Crispy golden-fried onion rings with house-made dipping sauces.",
+        image: "https://images.unsplash.com/photo-1639024471283-03518883512d?auto=format&fit=crop&w=600&q=80"
+      },
+      {
+        id: "beef-tenderloin",
+        name: "Beef Tenderloin",
+        category: "Grilled",
+        price: 65,
+        minutes: 18,
+        available: true,
+        description: "200g premium beef tenderloin with sauce choice, vegetables, and mashed potatoes.",
+        image: "https://images.unsplash.com/photo-1558030006-450675393462?auto=format&fit=crop&w=600&q=80"
+      },
+      {
+        id: "lamb-shoulder",
+        name: "Lamb Shoulder",
+        category: "Grilled",
+        price: 50,
+        minutes: 18,
+        available: true,
+        description: "200g lamb infused with rosemary and garlic, served with mashed potatoes and salad.",
+        image: "https://images.unsplash.com/photo-1602470520998-f4a52199a3d6?auto=format&fit=crop&w=600&q=80"
+      },
+      {
+        id: "grilled-chicken-chop",
+        name: "Grilled Chicken Chop",
+        category: "Western",
+        price: 30,
+        minutes: 16,
+        available: true,
+        description: "Flame-grilled chicken thigh with garlic herb butter, vegetables, and potato choice.",
+        image: "https://images.unsplash.com/photo-1598515214211-89d3c73ae83b?auto=format&fit=crop&w=600&q=80"
+      },
+      {
+        id: "homemade-beef-burger",
+        name: "Homemade Beef Burger",
+        category: "Western",
+        price: 24,
+        minutes: 14,
+        available: true,
+        description: "Beef burger with pickled cucumber, cheese, coleslaw, and French fries.",
+        image: "https://images.unsplash.com/photo-1568901346375-23c9450c58cd?auto=format&fit=crop&w=600&q=80"
+      },
+      {
+        id: "fish-and-chips",
+        name: "Fish & Chips",
+        category: "Western",
+        price: 28,
+        minutes: 15,
+        available: true,
+        description: "Seabass fillet with cut fries, green peas, coleslaw, and tartar sauce.",
+        image: "https://images.unsplash.com/photo-1579208030886-b937da0925dc?auto=format&fit=crop&w=600&q=80"
+      },
+      {
+        id: "spaghetti-chicken-supreme",
+        name: "Spaghetti Chicken Supreme",
+        category: "Western",
+        price: 32,
+        minutes: 15,
+        available: true,
+        description: "Spaghetti with grilled chicken in creamy white sauce.",
+        image: "https://images.unsplash.com/photo-1621996346565-e3dbc646d9a9?auto=format&fit=crop&w=600&q=80"
+      },
+      {
+        id: "cheesy-meatballs",
+        name: "Cheesy Meatballs",
+        category: "Western",
+        price: 22,
+        minutes: 12,
+        available: true,
+        description: "Meatballs braised in special sauce and topped with cheese.",
+        image: "https://images.unsplash.com/photo-1529042410759-befb1204b468?auto=format&fit=crop&w=600&q=80"
+      },
+      {
+        id: "spaghetti-marinara",
+        name: "Spaghetti Marinara",
+        category: "Western",
+        price: 22,
+        minutes: 14,
+        available: true,
+        description: "Spaghetti with fresh seafood and Italian herbs in tomato sauce.",
+        image: "https://images.unsplash.com/photo-1611270629569-8b357cb88da9?auto=format&fit=crop&w=600&q=80"
+      },
+      {
+        id: "mixed-sandwiches",
+        name: "Mixed Sandwiches",
+        category: "Western",
+        price: 30,
+        minutes: 10,
+        available: true,
+        description: "Assorted egg, tuna, and cucumber sandwiches.",
+        image: "https://images.unsplash.com/photo-1528735602780-2552fd46c7af?auto=format&fit=crop&w=600&q=80"
+      },
+      {
+        id: "chicken-drumette",
+        name: "Chicken Drumette (6 pcs)",
+        category: "Western",
+        price: 28,
+        minutes: 12,
+        available: true,
+        description: "Golden crisp chicken drumettes served with chilli sauce.",
+        image: "https://images.unsplash.com/photo-1527477396000-e27163b481c2?auto=format&fit=crop&w=600&q=80"
+      },
+      {
+        id: "penang-kuey-teow",
+        name: "Penang Style Kuey Teow",
+        category: "Noodles",
+        price: 18,
+        minutes: 12,
+        available: true,
+        description: "Flat rice noodles stir-fried with prawns, fishcake, bean sprouts, chives, and egg.",
+        image: "https://images.unsplash.com/photo-1552611052-33e04de081de?auto=format&fit=crop&w=600&q=80"
+      },
+      {
+        id: "mee-goreng-mamak",
+        name: "Mee Goreng Mamak",
+        category: "Noodles",
+        price: 18,
+        minutes: 12,
+        available: true,
+        description: "Yellow noodles with prawns, prawn fritters, fishcake, bean sprouts, chives, and egg.",
+        image: "https://images.unsplash.com/photo-1552611052-33e04de081de?auto=format&fit=crop&w=600&q=80"
+      },
+      {
+        id: "singapore-fried-bihun",
+        name: "Singapore Fried Bihun",
+        category: "Noodles",
+        price: 18,
+        minutes: 12,
+        available: true,
+        description: "Vermicelli noodles with cabbage, carrots, bean sprouts, chicken, fried egg, and fishcake.",
+        image: "https://images.unsplash.com/photo-1617093727343-374698b1b08d?auto=format&fit=crop&w=600&q=80"
+      },
+      {
+        id: "cantonese-beef-kuey-teow",
+        name: "Cantonese Beef Kuey Teow",
+        category: "Noodles",
+        price: 22,
+        minutes: 13,
+        available: true,
+        description: "Flat rice noodles wok-fried with beef, bean sprouts, scallions, and garlic oil.",
+        image: "https://images.unsplash.com/photo-1552611052-33e04de081de?auto=format&fit=crop&w=600&q=80"
+      },
+      {
+        id: "chinese-fried-rice",
+        name: "Chinese Fried Rice",
+        category: "Rice",
+        price: 18,
+        minutes: 12,
+        available: true,
+        description: "Rice stir-fried with egg, mixed vegetables, chicken, soy sauce, and garlic.",
+        image: "https://images.unsplash.com/photo-1603133872878-684f208fb84b?auto=format&fit=crop&w=600&q=80"
+      },
+      {
+        id: "pattaya-fried-rice",
+        name: "Pattaya Fried Rice",
+        category: "Rice",
+        price: 18,
+        minutes: 13,
+        available: true,
+        description: "Chicken fried rice wrapped in a thin omelette.",
+        image: "https://images.unsplash.com/photo-1603133872878-684f208fb84b?auto=format&fit=crop&w=600&q=80"
+      },
+      {
+        id: "usa-fried-rice-chicken",
+        name: "USA Fried Rice Chicken",
+        category: "Rice",
+        price: 22,
+        minutes: 14,
+        available: true,
+        description: "Fried rice with prawns, fishcakes, red chicken sauce or chilli paste, fried egg, and vegetables.",
+        image: "https://images.unsplash.com/photo-1603133872878-684f208fb84b?auto=format&fit=crop&w=600&q=80"
+      },
+      {
+        id: "usa-fried-rice-beef",
+        name: "USA Fried Rice Beef",
+        category: "Rice",
+        price: 24,
+        minutes: 14,
+        available: true,
+        description: "Fried rice with prawns, fishcakes, beef sauce or chilli paste, fried egg, and vegetables.",
+        image: "https://images.unsplash.com/photo-1603133872878-684f208fb84b?auto=format&fit=crop&w=600&q=80"
+      },
+      {
+        id: "nasi-goreng-kampung",
+        name: "Nasi Goreng Kampung",
+        category: "Rice",
+        price: 18,
+        minutes: 12,
+        available: true,
+        description: "Rustic Malay fried rice with ikan bilis, shrimp paste, and sambal.",
+        image: "https://images.unsplash.com/photo-1603133872878-684f208fb84b?auto=format&fit=crop&w=600&q=80"
+      },
+      {
+        id: "cucur-udang",
+        name: "Cucur Udang",
+        category: "Minum Petang",
+        price: 15,
+        minutes: 9,
+        available: true,
+        description: "Deep-fried prawn fritters served with Thai dipping sauce.",
+        image: "https://images.unsplash.com/photo-1565680018434-b513d5e5fd47?auto=format&fit=crop&w=600&q=80"
+      },
+      {
+        id: "cucur-sayur",
+        name: "Cucur Sayur",
+        category: "Minum Petang",
+        price: 12,
+        minutes: 8,
+        available: true,
+        description: "Golden crispy vegetable fritters served with Thai dipping sauce.",
+        image: "https://images.unsplash.com/photo-1541592106381-b31e9677c0e5?auto=format&fit=crop&w=600&q=80"
+      },
+      {
+        id: "mozzarella-cheese-sticks",
+        name: "Mozzarella Cheese Sticks",
+        category: "Choice Of The Day",
+        price: 22,
+        minutes: 9,
+        available: true,
+        description: "Golden fried mozzarella sticks served with creamy cheese sauce.",
+        image: "https://images.unsplash.com/photo-1548340748-6d2b7d7da280?auto=format&fit=crop&w=600&q=80"
+      },
+      {
+        id: "chicken-tender",
+        name: "Chicken Tender",
+        category: "Choice Of The Day",
+        price: 20,
+        minutes: 10,
+        available: true,
+        description: "Golden fried chicken strips served with dipping sauce.",
+        image: "https://images.unsplash.com/photo-1562967916-eb82221dfb92?auto=format&fit=crop&w=600&q=80"
+      },
+      {
+        id: "nuggets",
+        name: "Nuggets",
+        category: "Choice Of The Day",
+        price: 18,
+        minutes: 8,
+        available: true,
+        description: "Crispy chicken nuggets served with signature dipping sauce.",
+        image: "https://images.unsplash.com/photo-1562967916-eb82221dfb92?auto=format&fit=crop&w=600&q=80"
+      },
+      {
+        id: "combo-platter",
+        name: "Combo Platter",
+        category: "Choice Of The Day",
+        price: 42,
+        minutes: 14,
+        available: true,
+        description: "Mozzarella sticks, nuggets or mini drumsticks, and chicken tenders with sauces.",
+        image: "https://images.unsplash.com/photo-1562967916-eb82221dfb92?auto=format&fit=crop&w=600&q=80"
+      },
+      {
+        id: "mixed-cut-fruits",
+        name: "Mixed Cut Fruits",
+        category: "Desserts",
+        price: 15,
+        minutes: 5,
+        available: true,
+        description: "Watermelon, pineapple, honeydew, and papaya.",
+        image: "https://images.unsplash.com/photo-1619566636858-adf3ef46400b?auto=format&fit=crop&w=600&q=80"
+      },
+      {
+        id: "ice-cream",
+        name: "Ice-Cream",
+        category: "Desserts",
+        price: 5,
+        minutes: 4,
+        available: true,
+        description: "Choice of strawberry, vanilla, or chocolate. Price per scoop.",
+        image: "https://images.unsplash.com/photo-1563805042-7684c019e1cb?auto=format&fit=crop&w=600&q=80"
+      },
+      {
+        id: "ais-batu-campur",
+        name: "Ais Batu Campur",
+        category: "Desserts",
+        price: 18,
+        minutes: 7,
+        available: true,
+        description: "Shaved ice dessert with red beans, sweet corn, jelly, syrup, and ice cream.",
+        image: "https://images.unsplash.com/photo-1560008581-09826d1de69e?auto=format&fit=crop&w=600&q=80"
+      },
+      {
+        id: "banana-split",
+        name: "Banana Split",
+        category: "Desserts",
+        price: 18,
+        minutes: 7,
+        available: true,
+        description: "Banana with three scoops of ice cream, toppings, whipped cream, and cherry.",
+        image: "https://images.unsplash.com/photo-1579954115545-a95591f28bfc?auto=format&fit=crop&w=600&q=80"
+      },
+      {
+        id: "soft-drinks",
+        name: "Soft Drinks",
+        category: "Beverages",
+        price: 8,
+        minutes: 3,
+        available: true,
+        description: "Choice of Coke, Sprite, or 100 Plus.",
+        image: "https://images.unsplash.com/photo-1581636625402-29b2a704ef13?auto=format&fit=crop&w=600&q=80"
+      },
+      {
+        id: "soda-float",
+        name: "Soda Float",
+        category: "Beverages",
+        price: 12,
+        minutes: 4,
+        available: true,
+        description: "Coke or Sprite with your choice of ice cream.",
+        image: "https://images.unsplash.com/photo-1621263764928-df1444c5e859?auto=format&fit=crop&w=600&q=80"
+      },
+      {
+        id: "fresh-juice",
+        name: "Fresh Juice",
+        category: "Beverages",
+        price: 15,
+        minutes: 5,
+        available: true,
+        description: "Choice of watermelon, orange, apple, carrot, or pineapple juice.",
+        image: "https://images.unsplash.com/photo-1622597467836-f3285f2131b8?auto=format&fit=crop&w=600&q=80"
+      },
+      {
+        id: "milkshakes",
+        name: "Milkshakes",
+        category: "Beverages",
+        price: 15,
+        minutes: 5,
+        available: true,
+        description: "Choice of vanilla, strawberry, or chocolate.",
+        image: "https://images.unsplash.com/photo-1572490122747-3968b75cc699?auto=format&fit=crop&w=600&q=80"
+      },
+      {
+        id: "ice-blended",
+        name: "Ice Blended",
+        category: "Beverages",
+        price: 14,
+        minutes: 5,
+        available: true,
+        description: "Choice of longan, lychee, or mango.",
+        image: "https://images.unsplash.com/photo-1544145945-f90425340c7e?auto=format&fit=crop&w=600&q=80"
+      },
+      {
+        id: "teh-tarik",
+        name: "Teh Tarik",
+        category: "Beverages",
+        price: 8,
+        minutes: 4,
+        available: true,
+        description: "Classic pulled milk tea.",
+        image: "https://images.unsplash.com/photo-1576092762791-dd9e2220abd1?auto=format&fit=crop&w=600&q=80"
+      },
+      {
+        id: "fresh-coconut",
+        name: "Fresh Coconut",
+        category: "Beverages",
+        price: 15,
+        minutes: 3,
+        available: true,
+        description: "Fresh coconut drink.",
+        image: "https://images.unsplash.com/photo-1580984969071-a8da5656c2fb?auto=format&fit=crop&w=600&q=80"
+      },
+      {
+        id: "longan-ais",
+        name: "Longan Ais",
+        category: "Beverages",
+        price: 12,
+        minutes: 4,
+        available: true,
+        description: "Iced longan drink.",
+        image: "https://images.unsplash.com/photo-1544145945-f90425340c7e?auto=format&fit=crop&w=600&q=80"
+      },
+      {
+        id: "sirap-bandung",
+        name: "Sirap Bandung",
+        category: "Beverages",
+        price: 10,
+        minutes: 4,
+        available: true,
+        description: "Rose syrup drink with milk.",
+        image: "https://images.unsplash.com/photo-1622597467836-f3285f2131b8?auto=format&fit=crop&w=600&q=80"
+      },
+      {
+        id: "iced-lemon-tea",
+        name: "Iced Lemon Tea",
+        category: "Beverages",
+        price: 9,
+        minutes: 4,
+        available: true,
+        description: "Refreshing iced lemon tea.",
+        image: "https://images.unsplash.com/photo-1556679343-c7306c1976bc?auto=format&fit=crop&w=600&q=80"
+      },
+      {
+        id: "teh-o",
+        name: "Teh O",
+        category: "Hot Drinks",
+        price: 6,
+        minutes: 3,
+        available: true,
+        description: "Hot plain tea.",
+        image: "https://images.unsplash.com/photo-1544787219-7f47ccb76574?auto=format&fit=crop&w=600&q=80"
+      },
+      {
+        id: "kopi-o",
+        name: "Kopi O",
+        category: "Hot Drinks",
+        price: 6,
+        minutes: 3,
+        available: true,
+        description: "Hot black local coffee.",
+        image: "https://images.unsplash.com/photo-1495474472287-4d71bcdd2085?auto=format&fit=crop&w=600&q=80"
+      },
+      {
+        id: "milo",
+        name: "Milo",
+        category: "Hot Drinks",
+        price: 8,
+        minutes: 3,
+        available: true,
+        description: "Hot chocolate malt drink.",
+        image: "https://images.unsplash.com/photo-1517578239113-b03992dcdd25?auto=format&fit=crop&w=600&q=80"
+      },
+      {
+        id: "iced-lychee",
+        name: "Iced Lychee",
+        category: "Cold Drinks",
+        price: 12,
+        minutes: 4,
+        available: true,
+        description: "Chilled lychee drink.",
+        image: "https://images.unsplash.com/photo-1544145945-f90425340c7e?auto=format&fit=crop&w=600&q=80"
+      },
+      {
+        id: "iced-white-tea",
+        name: "Iced White Tea",
+        category: "Cold Drinks",
+        price: 9,
+        minutes: 4,
+        available: true,
+        description: "Refreshing iced white tea.",
+        image: "https://images.unsplash.com/photo-1556679343-c7306c1976bc?auto=format&fit=crop&w=600&q=80"
+      },
+      {
+        id: "iced-coffee",
+        name: "Iced Coffee",
+        category: "Cold Drinks",
+        price: 9,
+        minutes: 4,
+        available: true,
+        description: "Chilled coffee.",
+        image: "https://images.unsplash.com/photo-1517701604599-bb29b565090c?auto=format&fit=crop&w=600&q=80"
+      },
+      {
+        id: "iced-milo",
+        name: "Iced Milo",
+        category: "Cold Drinks",
+        price: 9,
+        minutes: 4,
+        available: true,
+        description: "Chilled chocolate malt drink.",
+        image: "https://images.unsplash.com/photo-1517578239113-b03992dcdd25?auto=format&fit=crop&w=600&q=80"
+      },
+      {
+        id: "iced-syrup",
+        name: "Iced Syrup",
+        category: "Cold Drinks",
+        price: 7,
+        minutes: 3,
+        available: true,
+        description: "Chilled syrup drink.",
+        image: "https://images.unsplash.com/photo-1622597467836-f3285f2131b8?auto=format&fit=crop&w=600&q=80"
+      },
+      {
+        id: "iced-lime",
+        name: "Iced Lime",
+        category: "Cold Drinks",
+        price: 7,
+        minutes: 3,
+        available: true,
+        description: "Refreshing iced lime drink.",
+        image: "https://images.unsplash.com/photo-1621263764928-df1444c5e859?auto=format&fit=crop&w=600&q=80"
+      },
+      {
+        id: "iced-water",
+        name: "Iced Water",
+        category: "Cold Drinks",
+        price: 6,
+        minutes: 2,
+        available: true,
+        description: "Iced drinking water.",
+        image: "https://images.unsplash.com/photo-1548839140-29a749e1cf4d?auto=format&fit=crop&w=600&q=80"
+      },
+      {
+        id: "earl-grey-tea",
+        name: "Earl Grey Tea",
+        category: "Tea",
+        price: 10,
+        minutes: 4,
+        available: true,
+        description: "Hot Earl Grey tea.",
+        image: "https://images.unsplash.com/photo-1544787219-7f47ccb76574?auto=format&fit=crop&w=600&q=80"
+      },
+      {
+        id: "english-breakfast-tea",
+        name: "English Breakfast Tea",
+        category: "Tea",
+        price: 10,
+        minutes: 4,
+        available: true,
+        description: "Hot English Breakfast tea.",
+        image: "https://images.unsplash.com/photo-1544787219-7f47ccb76574?auto=format&fit=crop&w=600&q=80"
+      },
+      {
+        id: "fruit-tea",
+        name: "Fruit Tea",
+        category: "Tea",
+        price: 10,
+        minutes: 4,
+        available: true,
+        description: "Hot fruit tea.",
+        image: "https://images.unsplash.com/photo-1544787219-7f47ccb76574?auto=format&fit=crop&w=600&q=80"
+      },
+      {
+        id: "premium-chinese-tea",
+        name: "Premium Chinese Tea",
+        category: "Tea",
+        price: 14,
+        minutes: 5,
+        available: true,
+        description: "Premium hot Chinese tea.",
+        image: "https://images.unsplash.com/photo-1544787219-7f47ccb76574?auto=format&fit=crop&w=600&q=80"
+      },
+      {
+        id: "cappucino",
+        name: "Cappucino",
+        category: "Espresso Coffee",
+        price: 15,
+        minutes: 5,
+        available: true,
+        description: "Bold espresso with steamed milk and foam.",
+        image: "https://images.unsplash.com/photo-1509042239860-f550ce710b93?auto=format&fit=crop&w=600&q=80"
+      },
+      {
+        id: "long-black",
+        name: "Long Black",
+        category: "Espresso Coffee",
+        price: 12,
+        minutes: 5,
+        available: true,
+        description: "Espresso poured over hot water for a full-bodied coffee.",
+        image: "https://images.unsplash.com/photo-1495474472287-4d71bcdd2085?auto=format&fit=crop&w=600&q=80"
+      },
+      {
+        id: "flat-white",
+        name: "Flat White",
+        category: "Espresso Coffee",
+        price: 15,
+        minutes: 5,
+        available: true,
+        description: "Smooth espresso with silky steamed milk.",
+        image: "https://images.unsplash.com/photo-1509042239860-f550ce710b93?auto=format&fit=crop&w=600&q=80"
+      },
+      {
+        id: "vienna-coffee",
+        name: "Vienna Coffee",
+        category: "Espresso Coffee",
+        price: 14,
+        minutes: 5,
+        available: true,
+        description: "Espresso topped with whipped cream.",
+        image: "https://images.unsplash.com/photo-1509042239860-f550ce710b93?auto=format&fit=crop&w=600&q=80"
+      },
+      {
+        id: "mocha",
+        name: "Mocha",
+        category: "Espresso Coffee",
+        price: 16,
+        minutes: 5,
+        available: true,
+        description: "Espresso with steamed milk and chocolate.",
+        image: "https://images.unsplash.com/photo-1517701604599-bb29b565090c?auto=format&fit=crop&w=600&q=80"
+      },
+      {
+        id: "latte",
+        name: "Latte",
+        category: "Espresso Coffee",
+        price: 14,
+        minutes: 5,
+        available: true,
+        description: "Espresso with steamed milk and a light foam top.",
+        image: "https://images.unsplash.com/photo-1509042239860-f550ce710b93?auto=format&fit=crop&w=600&q=80"
+      },
+      {
+        id: "hot-chocolate",
+        name: "Hot Chocolate",
+        category: "Espresso Coffee",
+        price: 12,
+        minutes: 5,
+        available: true,
+        description: "Warm cocoa drink with a light sweet finish.",
+        image: "https://images.unsplash.com/photo-1517578239113-b03992dcdd25?auto=format&fit=crop&w=600&q=80"
+      },
+      {
+        id: "iced-chocolate",
+        name: "Iced Chocolate",
+        category: "Espresso Coffee",
+        price: 16,
+        minutes: 5,
+        available: true,
+        description: "Chilled chocolate drink.",
+        image: "https://images.unsplash.com/photo-1517578239113-b03992dcdd25?auto=format&fit=crop&w=600&q=80"
+      },
+      {
+        id: "iced-vanilla-latte",
+        name: "Iced Vanilla Latte",
+        category: "Espresso Coffee",
+        price: 12,
+        minutes: 5,
+        available: true,
+        description: "Iced latte with vanilla flavour.",
+        image: "https://images.unsplash.com/photo-1517701604599-bb29b565090c?auto=format&fit=crop&w=600&q=80"
+      },
+      {
+        id: "iced-salted-caramel-latte",
+        name: "Iced Salted Caramel Latte",
+        category: "Espresso Coffee",
+        price: 16,
+        minutes: 5,
+        available: true,
+        description: "Iced latte with salted caramel flavour.",
+        image: "https://images.unsplash.com/photo-1517701604599-bb29b565090c?auto=format&fit=crop&w=600&q=80"
+      }
+    ];
+
+    const defaultState = {
+      table: 1,
+      activeCategory: "All",
+      cart: [],
+      menu: starterMenu,
+      orders: [],
+      lastSubmittedOrders: [],
+      tableSessionId: null,
+      tableStatus: "ready",
+      tableStatuses: {}
+    };
+
+    let state = loadState();
+
+    const money = value => `RM ${value.toFixed(2)}`;
+    const byId = id => document.getElementById(id);
+
+    function createId() {
+      return window.crypto?.randomUUID?.() || `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+    }
+
+    async function apiRequest(path, options = {}) {
+      const response = await fetch(`${apiBase}${path}`, {
+        headers: { "Content-Type": "application/json", ...(options.headers || {}) },
+        ...options
+      });
+      if (!response.ok) {
+        throw new Error(`Server responded with ${response.status}`);
+      }
+      return response.json();
+    }
+
+    async function syncOrders() {
+      if (!usesBackend) return;
+      try {
+        state.orders = await apiRequest("/api/orders");
+        state.tableStatuses = await apiRequest("/api/table-status");
+        saveState();
+        renderOrders();
+        renderCashier();
+      } catch (error) {
+        console.warn("Unable to sync orders", error);
+      }
+    }
+
+    async function syncMenuAvailability() {
+      if (!usesBackend) return;
+      try {
+        const availability = await apiRequest("/api/menu-availability");
+        state.menu = starterMenu.map(item => ({
+          ...item,
+          available: availability[item.id] ?? item.available
+        }));
+        saveState();
+        renderMenu();
+        renderAdmin();
+      } catch (error) {
+        console.warn("Unable to sync menu availability", error);
+      }
+    }
+
+    async function syncTableSession() {
+      if (!usesBackend) {
+        state.tableSessionId = state.tableSessionId || `local-table-${state.table}`;
+        return;
+      }
+
+      try {
+        const session = await apiRequest(`/api/tables/${state.table}/session`);
+        state.tableStatus = session.status || "ready";
+        const isReady = state.tableStatus === "ready";
+        if (state.tableSessionId && state.tableSessionId !== session.sessionId) {
+          state.cart = [];
+          state.lastSubmittedOrders = [];
+          closeCartSheet();
+          closeSummarySheet();
+        }
+        if (!isReady) {
+          state.cart = [];
+          state.lastSubmittedOrders = [];
+          closeCartSheet();
+          closeSummarySheet();
+        }
+        state.tableSessionId = session.sessionId;
+        saveState();
+        renderTableAvailability();
+        renderSubmittedSummary();
+        renderCart();
+      } catch (error) {
+        console.warn("Unable to sync table session", error);
+      }
+    }
+
+    function renderTableAvailability() {
+      const isReady = state.tableStatus === "ready";
+      byId("tableWaitPanel").classList.toggle("show", !isReady);
+      byId("categorySelect").disabled = !isReady;
+      byId("menuGrid").classList.toggle("hidden", !isReady);
+      byId("categoryBar").classList.toggle("hidden", !isReady);
+      document.querySelector(".category-select-wrap").classList.toggle("hidden", !isReady);
+      if (!isReady) {
+        byId("viewOrderButton").classList.add("hidden");
+      }
+    }
+
+    function updateMobileSafeBottom() {
+      const isMobileWidth = window.matchMedia("(max-width: 760px)").matches;
+      if (!isMobileWidth) {
+        document.documentElement.style.removeProperty("--mobile-safe-bottom");
+        return;
+      }
+
+      const viewport = window.visualViewport;
+      const hiddenBottom = viewport ? Math.max(0, window.innerHeight - viewport.height - viewport.offsetTop) : 0;
+      const safeBottom = Math.max(72, Math.ceil(hiddenBottom + 18));
+      document.documentElement.style.setProperty("--mobile-safe-bottom", `${safeBottom}px`);
+    }
+
+    function loadState() {
+      try {
+        const saved = JSON.parse(localStorage.getItem(storageKey));
+        if (!saved) return { ...defaultState, menu: starterMenu.map(item => ({ ...item })) };
+        return {
+          ...defaultState,
+          ...saved,
+          menu: starterMenu.map(item => ({ ...item, available: saved.menu?.find(savedItem => savedItem.id === item.id)?.available ?? item.available }))
+        };
+      } catch {
+        return { ...defaultState, menu: starterMenu.map(item => ({ ...item })) };
+      }
+    }
+
+    function saveState() {
+      localStorage.setItem(storageKey, JSON.stringify(state));
+    }
+
+    function showToast(message) {
+      const toast = byId("toast");
+      toast.textContent = message;
+      toast.classList.add("show");
+      setTimeout(() => toast.classList.remove("show"), 2200);
+    }
+
+    function setModalOpen(isOpen) {
+      document.body.classList.toggle("modal-open", isOpen);
+      byId("viewOrderButton").classList.toggle("hidden", isOpen);
+    }
+
+    function openCartSheet() {
+      document.querySelector(".cart-panel").classList.add("open");
+      byId("submittedSummary").classList.remove("open");
+      setModalOpen(true);
+    }
+
+    function closeCartSheet() {
+      document.querySelector(".cart-panel").classList.remove("open");
+      setModalOpen(false);
+    }
+
+    function openSummarySheet() {
+      byId("submittedSummary").classList.add("open");
+      document.querySelector(".cart-panel").classList.remove("open");
+      setModalOpen(true);
+    }
+
+    function closeSummarySheet() {
+      byId("submittedSummary").classList.remove("open");
+      setModalOpen(false);
+    }
+
+    function getTableFromUrl() {
+      const params = new URLSearchParams(window.location.search);
+      const table = Number(params.get("table"));
+      if (Number.isInteger(table) && table >= 1 && table <= tableCount) {
+        if (state.table !== table) {
+          state.cart = [];
+        }
+        state.table = table;
+      }
+    }
+
+    function renderAll() {
+      saveState();
+      renderTable();
+      renderTableAvailability();
+      renderSubmittedSummary();
+      renderCategories();
+      renderMenu();
+      renderCart();
+      renderOrders();
+      renderCashier();
+      renderQrLinks();
+      renderAdmin();
+    }
+
+    function renderTable() {
+      byId("tableTitle").textContent = `Table ${state.table}`;
+      byId("lockedTableBadge").textContent = `QR Table ${state.table}`;
+      byId("cartSubtitle").textContent = `Table ${state.table} order draft`;
+    }
+
+    function renderSubmittedSummary() {
+      const summary = byId("submittedSummary");
+      const submittedOrders = (state.lastSubmittedOrders || [])
+        .filter(order => order.table === state.table && (!state.tableSessionId || order.sessionId === state.tableSessionId));
+
+      if (!submittedOrders.length) {
+        summary.classList.remove("show", "sheet", "open");
+        summary.innerHTML = "";
+        return;
+      }
+
+      const firstOrder = submittedOrders[0];
+      const allItems = submittedOrders.flatMap(order => order.items);
+      const total = submittedOrders.reduce((sum, order) => sum + order.total, 0);
+
+      summary.classList.add("show", "sheet");
+      summary.innerHTML = `
+        <div>
+          <div style="display:flex;align-items:start;gap:12px;">
+            <div>
+              <h2>Order Summary</h2>
+              <p>Table ${state.table} • ${submittedOrders.length} order${submittedOrders.length === 1 ? "" : "s"} sent</p>
+              <p>Started ${new Date(firstOrder.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</p>
+            </div>
+            <button class="icon-btn summary-close" id="closeSummary" title="Close order summary">×</button>
+          </div>
+        </div>
+        <ol class="submitted-items">
+          ${allItems.map(item => `
+            <li>
+              <span>
+                <span class="receipt-item-name">${item.qty}× ${item.name}</span>
+                ${item.remark ? `<small style="display:block;color:var(--muted);">Remark: ${item.remark}</small>` : ""}
+              </span>
+              <strong>${money(item.price * item.qty)}</strong>
+            </li>
+          `).join("")}
+        </ol>
+        <div class="submitted-total">
+          <span>Final Amount</span>
+          <span>${money(total)}</span>
+        </div>
+      `;
+      byId("closeSummary").addEventListener("click", () => {
+        closeSummarySheet();
+      });
+    }
+
+    function renderCategories() {
+      const categories = ["All", ...new Set(state.menu.map(item => item.category))];
+      byId("categoryBar").innerHTML = categories.map(category => `
+        <button class="${state.activeCategory === category ? "active" : ""}" data-category="${category}">
+          ${category}
+        </button>
+      `).join("");
+      byId("categorySelect").innerHTML = categories.map(category => `
+        <option value="${category}" ${state.activeCategory === category ? "selected" : ""}>${category}</option>
+      `).join("");
+    }
+
+    function renderMenu() {
+      const menu = state.activeCategory === "All"
+        ? state.menu
+        : state.menu.filter(item => item.category === state.activeCategory);
+
+      byId("menuGrid").innerHTML = menu.map(item => `
+        <article class="menu-card ${item.available ? "" : "soldout"}">
+          <img src="${item.image}" alt="${item.name}" loading="lazy" />
+          <div class="menu-info">
+            <div>
+              <h3>${item.name}</h3>
+              <p>${item.description}</p>
+            </div>
+            <p>${item.minutes} min preparation</p>
+            <div class="price-row">
+              <span class="price">${money(item.price)}</span>
+              <button class="add-btn" data-add="${item.id}" ${item.available ? "" : "disabled"}>
+                ${item.available ? "Add" : "Sold Out"}
+              </button>
+            </div>
+          </div>
+        </article>
+      `).join("");
+    }
+
+    function renderCart() {
+      const list = byId("cartList");
+      if (!state.cart.length) {
+        list.innerHTML = `<div class="cart-empty">No items yet. Choose menu items to create an order.</div>`;
+      } else {
+        list.innerHTML = state.cart.map(item => `
+          <div class="cart-item">
+            <div class="cart-title">
+              <span>${item.name}</span>
+              <span>${money(item.price * item.qty)}</span>
+            </div>
+            <div class="qty-row">
+              <button class="icon-btn" data-dec="${item.id}" title="Decrease quantity">−</button>
+              <strong>${item.qty}</strong>
+              <button class="icon-btn" data-inc="${item.id}" title="Increase quantity">+</button>
+              <button class="icon-btn" data-remove="${item.id}" title="Remove item">×</button>
+            </div>
+            <textarea data-remark="${item.id}" placeholder="Special request, e.g. more spicy, no onion">${item.remark || ""}</textarea>
+          </div>
+        `).join("");
+      }
+
+      const total = state.cart.reduce((sum, item) => sum + item.price * item.qty, 0);
+      const itemCount = state.cart.reduce((sum, item) => sum + item.qty, 0);
+      byId("cartSummaryLabel").textContent = itemCount ? `${itemCount} item${itemCount === 1 ? "" : "s"}` : "Order";
+      byId("cartTotal").textContent = money(total);
+      byId("submitOrder").disabled = state.cart.length === 0;
+      const viewButton = byId("viewOrderButton");
+      if (state.tableStatus !== "ready") {
+        viewButton.classList.add("hidden");
+        document.querySelector(".cart-panel").classList.remove("open");
+        return;
+      }
+      const submittedOrders = (state.lastSubmittedOrders || [])
+        .filter(order => order.table === state.table && (!state.tableSessionId || order.sessionId === state.tableSessionId));
+      const submittedTotal = submittedOrders.reduce((sum, order) => sum + order.total, 0);
+      const hasSubmittedOrder = submittedOrders.length > 0;
+
+      if (itemCount) {
+        viewButton.textContent = `View Order • ${itemCount} item${itemCount === 1 ? "" : "s"} • ${money(total)}`;
+        viewButton.dataset.mode = "draft";
+        viewButton.disabled = false;
+        if (!document.body.classList.contains("modal-open")) viewButton.classList.remove("hidden");
+      } else if (hasSubmittedOrder) {
+        viewButton.textContent = `Order Summary • ${money(submittedTotal)}`;
+        viewButton.dataset.mode = "summary";
+        viewButton.disabled = false;
+        if (!document.body.classList.contains("modal-open")) viewButton.classList.remove("hidden");
+        document.querySelector(".cart-panel").classList.remove("open");
+      } else {
+        viewButton.textContent = "View Order";
+        viewButton.dataset.mode = "draft";
+        viewButton.disabled = true;
+        viewButton.classList.add("hidden");
+        document.querySelector(".cart-panel").classList.remove("open");
+      }
+    }
+
+    function renderOrders() {
+      const orders = [...state.orders].sort((a, b) => a.createdAt - b.createdAt);
+      if (!orders.length) {
+        byId("ordersGrid").innerHTML = `<div class="panel"><h2>No active orders</h2><p>Orders sent from the customer menu will appear here.</p></div>`;
+        return;
+      }
+
+      byId("ordersGrid").innerHTML = orders.map(order => {
+        const statusClass = order.status.toLowerCase();
+        return `
+          <article class="order-card ${statusClass}">
+            <div class="order-meta">
+              <div>
+                <h3>Table ${order.table}</h3>
+                <p>${new Date(order.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })} • ${money(order.total)}</p>
+              </div>
+              <span class="badge ${statusClass}">${order.status}</span>
+            </div>
+            <ol class="order-items">
+              ${order.items.map(item => `
+                <li>
+                  ${item.qty}× ${item.name}
+                  ${item.remark ? `<small>Remark: ${item.remark}</small>` : ""}
+                </li>
+              `).join("")}
+            </ol>
+            <div class="status-actions">
+              ${["Preparing", "Ready", "Completed"].map(status => `
+                <button class="status-btn ${order.status === status ? "active" : ""}" data-status="${status}" data-order="${order.id}">
+                  ${status}
+                </button>
+              `).join("")}
+            </div>
+          </article>
+        `;
+      }).join("");
+    }
+
+    function renderCashier() {
+      const activeOrders = state.orders;
+      const grouped = activeOrders.reduce((groups, order) => {
+        const table = order.table;
+        groups[table] = groups[table] || [];
+        groups[table].push(order);
+        return groups;
+      }, {});
+
+      const tableNumbers = Object.keys(grouped).map(Number).sort((a, b) => a - b);
+      const pendingTables = state.tableStatuses
+        ? Object.entries(state.tableStatuses).filter(([, status]) => status === "payment_pending").map(([table]) => Number(table))
+        : [];
+      const allTables = [...new Set([...tableNumbers, ...pendingTables])].sort((a, b) => a - b);
+
+      if (!allTables.length) {
+        byId("cashierGrid").innerHTML = `<div class="panel"><h2>No active bills</h2><p>Submitted table orders will appear here for payment and table closing.</p></div>`;
+        return;
+      }
+
+      byId("cashierGrid").innerHTML = allTables.map(table => {
+        const tableOrders = grouped[table] || [];
+        const isPendingReady = state.tableStatuses?.[table] === "payment_pending";
+        const total = tableOrders.reduce((sum, order) => sum + order.total, 0);
+        const itemCount = tableOrders.reduce((sum, order) => sum + order.items.reduce((itemSum, item) => itemSum + item.qty, 0), 0);
+        const items = tableOrders.flatMap(order => order.items);
+        return `
+          <article class="cashier-card">
+            <div>
+              <h3>Table ${table}</h3>
+              <div class="cashier-meta">
+                <span>${isPendingReady ? "Waiting for table ready" : `${tableOrders.length} order${tableOrders.length === 1 ? "" : "s"}`}</span>
+                <span>${itemCount} item${itemCount === 1 ? "" : "s"}</span>
+              </div>
+            </div>
+            <ol class="order-items">
+              ${items.length ? items.map(item => `
+                <li>
+                  ${item.qty}× ${item.name}
+                  ${item.remark ? `<small>Remark: ${item.remark}</small>` : ""}
+                </li>
+              `).join("") : `<li>Payment finished. Mark this table ready only after it has been cleaned and is available.</li>`}
+            </ol>
+            <div class="cashier-total">
+              <span>Total</span>
+              <span>${money(total)}</span>
+            </div>
+            ${isPendingReady ? `
+              <label class="switch">
+                <input type="checkbox" data-ready-confirm="${table}" />
+                Table cleaned and ready for next customer
+              </label>
+              <button class="close-table-btn" data-ready-action="${table}" disabled>Mark Table ${table} Ready</button>
+            ` : `
+              <label class="switch">
+                <input type="checkbox" data-ready-table="${table}" />
+                Confirm payment finished
+              </label>
+              <button class="close-table-btn" data-close-table="${table}" disabled>Payment Done / Hold Table</button>
+            `}
+          </article>
+        `;
+      }).join("");
+    }
+
+    function renderAdmin() {
+      renderQrLinks();
+      byId("adminGrid").innerHTML = state.menu.map(item => `
+        <article class="admin-item">
+          <img src="${item.image}" alt="${item.name}" loading="lazy" />
+          <div>
+            <h3>${item.name}</h3>
+            <p>${item.category} • ${money(item.price)}</p>
+          </div>
+          <label class="switch">
+            <input type="checkbox" data-available="${item.id}" ${item.available ? "checked" : ""} />
+            Available
+          </label>
+        </article>
+      `).join("");
+    }
+
+    function tableUrl(table) {
+      if (window.location.protocol === "file:") {
+        const url = new URL(localServerBaseUrl);
+        url.searchParams.set("table", table);
+        return url.href;
+      }
+
+      const url = new URL(window.location.href);
+      url.search = "";
+      url.hash = "";
+      url.searchParams.set("table", table);
+      return url.href;
+    }
+
+    function renderQrLinks() {
+      const qrGrid = byId("qrGrid");
+      if (!qrGrid) return;
+      qrGrid.innerHTML = Array.from({ length: tableCount }, (_, index) => {
+        const table = index + 1;
+        const url = tableUrl(table);
+        const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=${encodeURIComponent(url)}`;
+        return `
+          <article class="qr-card">
+            <img src="${qrUrl}" alt="QR code for Table ${table}" loading="lazy" />
+            <div>
+              <h3>Table ${table}</h3>
+              <a href="${url}" target="_blank" rel="noreferrer">${url}</a>
+            </div>
+          </article>
+        `;
+      }).join("");
+    }
+
+    function addToCart(id) {
+      if (state.tableStatus !== "ready") {
+        showToast("Please wait until this table is ready for the next customer.");
+        return;
+      }
+      const item = state.menu.find(menuItem => menuItem.id === id);
+      if (!item || !item.available) return;
+      const existing = state.cart.find(cartItem => cartItem.id === id);
+      if (existing) {
+        existing.qty += 1;
+      } else {
+        state.cart.push({ id: item.id, name: item.name, price: item.price, minutes: item.minutes, qty: 1, remark: "" });
+      }
+      showToast(`${item.name} added to Table ${state.table} order`);
+      renderAll();
+    }
+
+    function changeQty(id, delta) {
+      const item = state.cart.find(cartItem => cartItem.id === id);
+      if (!item) return;
+      item.qty += delta;
+      if (item.qty <= 0) {
+        state.cart = state.cart.filter(cartItem => cartItem.id !== id);
+      }
+      renderAll();
+    }
+
+    async function submitOrder() {
+      if (!state.cart.length) return;
+      if (usesBackend && !state.tableSessionId) {
+        await syncTableSession();
+      }
+      const total = state.cart.reduce((sum, item) => sum + item.price * item.qty, 0);
+      const newOrder = {
+        id: createId(),
+        table: state.table,
+        sessionId: state.tableSessionId || `local-table-${state.table}`,
+        items: state.cart.map(item => ({ ...item })),
+        total,
+        status: "Preparing",
+        createdAt: Date.now()
+      };
+      const submitButton = byId("submitOrder");
+      submitButton.disabled = true;
+      submitButton.textContent = "Sending...";
+
+      try {
+        const savedOrder = usesBackend
+          ? await apiRequest("/api/orders", { method: "POST", body: JSON.stringify(newOrder) })
+          : newOrder;
+        state.orders.push(savedOrder);
+        state.lastSubmittedOrders = [
+          ...(state.lastSubmittedOrders || []).filter(order => order.sessionId === savedOrder.sessionId || order.table !== savedOrder.table),
+          savedOrder
+        ];
+        state.cart = [];
+        openSummarySheet();
+        showToast(`Order sent to kitchen for Table ${savedOrder.table}`);
+        renderAll();
+        if (usesBackend) await syncOrders();
+      } catch (error) {
+        showToast("Order could not be sent. Check the server connection.");
+        console.error(error);
+        renderCart();
+      } finally {
+        submitButton.textContent = "Send to Kitchen";
+        submitButton.disabled = state.cart.length === 0;
+      }
+    }
+
+    function estimateForTable(table) {
+      const activeOrders = state.orders
+        .filter(order => order.status !== "Completed")
+        .sort((a, b) => a.createdAt - b.createdAt);
+      const tableOrderIndex = activeOrders.findIndex(order => order.table === table);
+
+      if (tableOrderIndex === -1) {
+        return `No active order found for Table ${table}. Send an order first, then I can estimate the queue.`;
+      }
+
+      const ordersBefore = activeOrders.slice(0, tableOrderIndex);
+      const tableOrder = activeOrders[tableOrderIndex];
+      const workloadBefore = ordersBefore.reduce((sum, order) => sum + order.items.reduce((itemSum, item) => itemSum + item.minutes * item.qty, 0), 0);
+      const ownWorkload = tableOrder.items.reduce((sum, item) => sum + item.minutes * item.qty, 0);
+      const estimated = Math.max(4, Math.ceil(workloadBefore * 0.45 + ownWorkload * 0.55));
+
+      if (tableOrder.status === "Ready") {
+        return `Table ${table}, your order is ready for serving.`;
+      }
+
+      return `Table ${table}, there ${ordersBefore.length === 1 ? "is" : "are"} ${ordersBefore.length} active order${ordersBefore.length === 1 ? "" : "s"} before yours. Estimated waiting time is about ${estimated} minutes.`;
+    }
+
+    function askAssistant() {
+      const question = byId("assistantQuestion").value.trim().toLowerCase();
+      const answer = byId("assistantAnswer");
+      if (!question) {
+        answer.textContent = estimateForTable(state.table);
+        return;
+      }
+
+      if (question.includes("ready") || question.includes("status") || question.includes("long") || question.includes("time") || question.includes("queue")) {
+        answer.textContent = estimateForTable(state.table);
+      } else {
+        answer.textContent = "I can answer order status, waiting time, and queue questions for this prototype.";
+      }
+    }
+
+    document.querySelector(".mode-tabs").addEventListener("click", event => {
+      const button = event.target.closest("button[data-view]");
+      if (!button) return;
+      document.querySelectorAll(".mode-tabs button").forEach(tab => tab.classList.remove("active"));
+      button.classList.add("active");
+      ["customer", "kitchen", "cashier", "admin"].forEach(view => {
+        byId(`${view}View`).classList.toggle("hidden", view !== button.dataset.view);
+      });
+    });
+
+    byId("categoryBar").addEventListener("click", event => {
+      const button = event.target.closest("button[data-category]");
+      if (!button) return;
+      state.activeCategory = button.dataset.category;
+      renderAll();
+    });
+
+    byId("categorySelect").addEventListener("change", event => {
+      state.activeCategory = event.target.value;
+      renderAll();
+    });
+
+    byId("menuGrid").addEventListener("click", event => {
+      const button = event.target.closest("button[data-add]");
+      if (button) addToCart(button.dataset.add);
+    });
+
+    byId("cartList").addEventListener("click", event => {
+      const inc = event.target.closest("button[data-inc]");
+      const dec = event.target.closest("button[data-dec]");
+      const remove = event.target.closest("button[data-remove]");
+      if (inc) changeQty(inc.dataset.inc, 1);
+      if (dec) changeQty(dec.dataset.dec, -1);
+      if (remove) {
+        state.cart = state.cart.filter(item => item.id !== remove.dataset.remove);
+        renderAll();
+      }
+    });
+
+    byId("cartList").addEventListener("input", event => {
+      const remark = event.target.closest("textarea[data-remark]");
+      if (!remark) return;
+      const item = state.cart.find(cartItem => cartItem.id === remark.dataset.remark);
+      if (item) {
+        item.remark = remark.value;
+        saveState();
+      }
+    });
+
+    byId("submitOrder").addEventListener("click", submitOrder);
+    byId("viewOrderButton").addEventListener("click", () => {
+      if (byId("viewOrderButton").dataset.mode === "summary") {
+        openSummarySheet();
+        return;
+      }
+      openCartSheet();
+    });
+    byId("closeCart").addEventListener("click", () => {
+      closeCartSheet();
+    });
+    window.addEventListener("resize", updateMobileSafeBottom);
+    window.visualViewport?.addEventListener("resize", updateMobileSafeBottom);
+    window.visualViewport?.addEventListener("scroll", updateMobileSafeBottom);
+    byId("askAssistant").addEventListener("click", askAssistant);
+    byId("assistantQuestion").addEventListener("keydown", event => {
+      if (event.key === "Enter") askAssistant();
+    });
+
+    byId("ordersGrid").addEventListener("click", async event => {
+      const button = event.target.closest("button[data-status]");
+      if (!button) return;
+      const order = state.orders.find(orderItem => orderItem.id === button.dataset.order);
+      if (order) {
+        const nextStatus = button.dataset.status;
+        button.disabled = true;
+        try {
+          if (usesBackend) {
+            await apiRequest(`/api/orders/${encodeURIComponent(order.id)}/status`, {
+              method: "PATCH",
+              body: JSON.stringify({ status: nextStatus })
+            });
+          }
+          order.status = nextStatus;
+          showToast(`Table ${order.table} marked as ${order.status}`);
+          renderAll();
+          if (usesBackend) await syncOrders();
+        } catch (error) {
+          showToast("Status could not be updated. Check the server connection.");
+          console.error(error);
+          button.disabled = false;
+        }
+      }
+    });
+
+    byId("cashierGrid").addEventListener("change", event => {
+      const checkbox = event.target.closest("input[data-ready-table], input[data-ready-confirm]");
+      if (!checkbox) return;
+      const card = checkbox.closest(".cashier-card");
+      const closeButton = card.querySelector("button[data-close-table], button[data-ready-action]");
+      closeButton.disabled = !checkbox.checked;
+    });
+
+    byId("cashierGrid").addEventListener("click", async event => {
+      const readyButton = event.target.closest("button[data-ready-action]");
+      if (readyButton) {
+        const table = Number(readyButton.dataset.readyAction);
+        readyButton.disabled = true;
+        try {
+          if (usesBackend) {
+            const result = await apiRequest(`/api/tables/${table}/ready`, { method: "POST" });
+            state.tableStatuses[table] = result.status;
+          }
+          showToast(`Table ${table} marked ready for next customer`);
+          renderAll();
+          if (usesBackend) {
+            await syncOrders();
+            await syncTableSession();
+          }
+        } catch (error) {
+          showToast("Table could not be marked ready. Check the server connection.");
+          console.error(error);
+          readyButton.disabled = false;
+        }
+        return;
+      }
+
+      const closeButton = event.target.closest("button[data-close-table]");
+      if (closeButton) {
+        const table = Number(closeButton.dataset.closeTable);
+        closeButton.disabled = true;
+        try {
+          if (usesBackend) {
+            const result = await apiRequest(`/api/tables/${table}/close`, { method: "POST" });
+            state.tableStatuses[table] = result.status;
+          }
+          state.orders = state.orders.filter(order => Number(order.table) !== table);
+          if (state.table === table) {
+            state.cart = [];
+            state.lastSubmittedOrders = [];
+            state.tableStatus = "payment_pending";
+            await syncTableSession();
+          }
+          showToast(`Table ${table} payment done. Waiting for table ready.`);
+          renderAll();
+          if (usesBackend) await syncOrders();
+        } catch (error) {
+          showToast("Table could not be closed. Check the server connection.");
+          console.error(error);
+          closeButton.disabled = false;
+        }
+        return;
+      }
+    });
+
+    byId("adminGrid").addEventListener("change", async event => {
+      const checkbox = event.target.closest("input[data-available]");
+      if (!checkbox) return;
+      const item = state.menu.find(menuItem => menuItem.id === checkbox.dataset.available);
+      if (item) {
+        checkbox.disabled = true;
+        const previous = item.available;
+        item.available = checkbox.checked;
+        try {
+          if (usesBackend) {
+            await apiRequest("/api/menu-availability", {
+              method: "PATCH",
+              body: JSON.stringify({ id: item.id, available: item.available })
+            });
+          }
+          showToast(`${item.name} marked ${item.available ? "available" : "sold out"}`);
+          renderAll();
+          if (usesBackend) await syncMenuAvailability();
+        } catch (error) {
+          item.available = previous;
+          checkbox.checked = previous;
+          showToast("Availability could not be updated. Check the server connection.");
+          console.error(error);
+        } finally {
+          checkbox.disabled = false;
+        }
+      }
+    });
+
+    getTableFromUrl();
+    updateMobileSafeBottom();
+    renderAll();
+    syncTableSession();
+    syncOrders();
+    syncMenuAvailability();
+    if (usesBackend) {
+      setInterval(() => {
+        syncOrders();
+        syncTableSession();
+        syncMenuAvailability();
+      }, 2500);
+    }
+  </script>
+</body>
+</html>
