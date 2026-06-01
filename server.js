@@ -6,6 +6,7 @@ const port = Number(process.env.PORT || 8080);
 const root = __dirname;
 const dataDir = process.env.DATA_DIR || root;
 const dataFile = path.join(dataDir, "orders-data.json");
+let memoryOrders = [];
 
 if (!fs.existsSync(dataDir)) {
   fs.mkdirSync(dataDir, { recursive: true });
@@ -13,14 +14,20 @@ if (!fs.existsSync(dataDir)) {
 
 function readOrders() {
   try {
-    return JSON.parse(fs.readFileSync(dataFile, "utf8"));
+    memoryOrders = JSON.parse(fs.readFileSync(dataFile, "utf8"));
+    return memoryOrders;
   } catch {
-    return [];
+    return memoryOrders;
   }
 }
 
 function writeOrders(orders) {
-  fs.writeFileSync(dataFile, JSON.stringify(orders, null, 2));
+  memoryOrders = orders;
+  try {
+    fs.writeFileSync(dataFile, JSON.stringify(orders, null, 2));
+  } catch (error) {
+    console.warn(`Orders saved in memory only: ${error.message}`);
+  }
 }
 
 function sendJson(res, status, data) {
@@ -80,6 +87,9 @@ const server = http.createServer(async (req, res) => {
 
     if (url.pathname === "/api/orders" && req.method === "POST") {
       const order = await readBody(req);
+      if (!Number.isInteger(Number(order.table)) || !Array.isArray(order.items) || order.items.length === 0) {
+        return sendJson(res, 400, { error: "Invalid order payload" });
+      }
       const orders = readOrders();
       const saved = {
         ...order,
