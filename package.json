@@ -1,0 +1,13 @@
+{
+  "name": "self-ordering-menu-system",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Self-ordering menu, table QR, and kitchen queue system.",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

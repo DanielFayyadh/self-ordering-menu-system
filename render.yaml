@@ -1,0 +1,15 @@
+services:
+  - type: web
+    name: self-ordering-menu-system
+    env: node
+    plan: starter
+    buildCommand: ""
+    startCommand: "npm start"
+    healthCheckPath: "/api/health"
+    disk:
+      name: order-data
+      mountPath: /var/data
+      sizeGB: 1
+    envVars:
+      - key: DATA_DIR
+        value: /var/data
