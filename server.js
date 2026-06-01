@@ -7,11 +7,9 @@ const root = __dirname;
 const dataDir = process.env.DATA_DIR || root;
 const dataFile = path.join(dataDir, "orders-data.json");
 const sessionsFile = path.join(dataDir, "table-sessions.json");
-const tableStatusFile = path.join(dataDir, "table-status.json");
 const menuAvailabilityFile = path.join(dataDir, "menu-availability.json");
 let memoryOrders = [];
 let memorySessions = {};
-let memoryTableStatus = {};
 let memoryMenuAvailability = {};
 
 if (!fs.existsSync(dataDir)) {
@@ -61,29 +59,6 @@ function getTableSession(table) {
     writeSessions(sessions);
   }
   return sessions[table];
-}
-
-function readTableStatus() {
-  try {
-    memoryTableStatus = JSON.parse(fs.readFileSync(tableStatusFile, "utf8"));
-    return memoryTableStatus;
-  } catch {
-    return memoryTableStatus;
-  }
-}
-
-function writeTableStatus(status) {
-  memoryTableStatus = status;
-  try {
-    fs.writeFileSync(tableStatusFile, JSON.stringify(status, null, 2));
-  } catch (error) {
-    console.warn(`Table status saved in memory only: ${error.message}`);
-  }
-}
-
-function getTableState(table) {
-  const statuses = readTableStatus();
-  return statuses[table] || "ready";
 }
 
 function readMenuAvailability() {
@@ -159,10 +134,6 @@ const server = http.createServer(async (req, res) => {
       return sendJson(res, 200, readOrders());
     }
 
-    if (url.pathname === "/api/table-status" && req.method === "GET") {
-      return sendJson(res, 200, readTableStatus());
-    }
-
     if (url.pathname === "/api/menu-availability" && req.method === "GET") {
       return sendJson(res, 200, readMenuAvailability());
     }
@@ -181,7 +152,7 @@ const server = http.createServer(async (req, res) => {
     const tableSessionMatch = url.pathname.match(/^\/api\/tables\/(\d+)\/session$/);
     if (tableSessionMatch && req.method === "GET") {
       const table = Number(tableSessionMatch[1]);
-      return sendJson(res, 200, { table, sessionId: getTableSession(table), status: getTableState(table) });
+      return sendJson(res, 200, { table, sessionId: getTableSession(table) });
     }
 
     const tableCloseMatch = url.pathname.match(/^\/api\/tables\/(\d+)\/close$/);
@@ -191,30 +162,15 @@ const server = http.createServer(async (req, res) => {
       const remaining = orders.filter(order => Number(order.table) !== table);
       writeOrders(remaining);
 
-      const statuses = readTableStatus();
-      statuses[table] = "payment_pending";
-      writeTableStatus(statuses);
-
-      return sendJson(res, 200, {
-        table,
-        removed: orders.length - remaining.length,
-        sessionId: getTableSession(table),
-        status: statuses[table]
-      });
-    }
-
-    const tableReadyMatch = url.pathname.match(/^\/api\/tables\/(\d+)\/ready$/);
-    if (tableReadyMatch && req.method === "POST") {
-      const table = Number(tableReadyMatch[1]);
       const sessions = readSessions();
       sessions[table] = `table-${table}-${Date.now()}`;
       writeSessions(sessions);
 
-      const statuses = readTableStatus();
-      statuses[table] = "ready";
-      writeTableStatus(statuses);
-
-      return sendJson(res, 200, { table, sessionId: sessions[table], status: "ready" });
+      return sendJson(res, 200, {
+        table,
+        removed: orders.length - remaining.length,
+        sessionId: sessions[table]
+      });
     }
 
     if (url.pathname === "/api/orders" && req.method === "POST") {
