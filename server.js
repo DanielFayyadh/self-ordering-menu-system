@@ -134,6 +134,23 @@ const server = http.createServer(async (req, res) => {
       return sendJson(res, 200, readOrders());
     }
 
+    if (url.pathname === "/api/table-status" && req.method === "GET") {
+      const orders = readOrders();
+      const sessions = readSessions();
+      const tables = {};
+      for (let table = 1; table <= 21; table += 1) {
+        const tableOrders = orders.filter(order => Number(order.table) === table);
+        tables[table] = {
+          table,
+          sessionId: sessions[table] || null,
+          status: tableOrders.length ? "open" : "closed",
+          orderCount: tableOrders.length,
+          total: tableOrders.reduce((sum, order) => sum + Number(order.total || 0), 0)
+        };
+      }
+      return sendJson(res, 200, tables);
+    }
+
     if (url.pathname === "/api/menu-availability" && req.method === "GET") {
       return sendJson(res, 200, readMenuAvailability());
     }
