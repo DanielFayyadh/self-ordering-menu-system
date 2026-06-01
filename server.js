@@ -202,6 +202,22 @@ const server = http.createServer(async (req, res) => {
       return sendJson(res, 200, order);
     }
 
+    const servedMatch = url.pathname.match(/^\/api\/orders\/([^/]+)\/items\/(\d+)\/served$/);
+    if (servedMatch && req.method === "PATCH") {
+      const body = await readBody(req);
+      const orders = readOrders();
+      const order = orders.find(item => item.id === decodeURIComponent(servedMatch[1]));
+      if (!order) return sendJson(res, 404, { error: "Order not found" });
+
+      const itemIndex = Number(servedMatch[2]);
+      if (!order.items[itemIndex]) return sendJson(res, 404, { error: "Order item not found" });
+
+      order.items[itemIndex].served = Boolean(body.served);
+      order.status = order.items.every(item => item.served) ? "Completed" : "Preparing";
+      writeOrders(orders);
+      return sendJson(res, 200, order);
+    }
+
     if (url.pathname === "/api/orders/completed" && req.method === "DELETE") {
       const orders = readOrders();
       const remaining = orders.filter(order => order.status !== "Completed");
