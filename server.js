@@ -7,8 +7,10 @@ const root = __dirname;
 const dataDir = process.env.DATA_DIR || root;
 const dataFile = path.join(dataDir, "orders-data.json");
 const sessionsFile = path.join(dataDir, "table-sessions.json");
+const menuAvailabilityFile = path.join(dataDir, "menu-availability.json");
 let memoryOrders = [];
 let memorySessions = {};
+let memoryMenuAvailability = {};
 
 if (!fs.existsSync(dataDir)) {
   fs.mkdirSync(dataDir, { recursive: true });
@@ -57,6 +59,24 @@ function getTableSession(table) {
     writeSessions(sessions);
   }
   return sessions[table];
+}
+
+function readMenuAvailability() {
+  try {
+    memoryMenuAvailability = JSON.parse(fs.readFileSync(menuAvailabilityFile, "utf8"));
+    return memoryMenuAvailability;
+  } catch {
+    return memoryMenuAvailability;
+  }
+}
+
+function writeMenuAvailability(availability) {
+  memoryMenuAvailability = availability;
+  try {
+    fs.writeFileSync(menuAvailabilityFile, JSON.stringify(availability, null, 2));
+  } catch (error) {
+    console.warn(`Menu availability saved in memory only: ${error.message}`);
+  }
 }
 
 function sendJson(res, status, data) {
@@ -112,6 +132,21 @@ const server = http.createServer(async (req, res) => {
 
     if (url.pathname === "/api/orders" && req.method === "GET") {
       return sendJson(res, 200, readOrders());
+    }
+
+    if (url.pathname === "/api/menu-availability" && req.method === "GET") {
+      return sendJson(res, 200, readMenuAvailability());
+    }
+
+    if (url.pathname === "/api/menu-availability" && req.method === "PATCH") {
+      const body = await readBody(req);
+      if (!body.id || typeof body.available !== "boolean") {
+        return sendJson(res, 400, { error: "Invalid menu availability payload" });
+      }
+      const availability = readMenuAvailability();
+      availability[body.id] = body.available;
+      writeMenuAvailability(availability);
+      return sendJson(res, 200, availability);
     }
 
     const tableSessionMatch = url.pathname.match(/^\/api\/tables\/(\d+)\/session$/);
