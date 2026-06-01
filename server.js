@@ -6,7 +6,9 @@ const port = Number(process.env.PORT || 8080);
 const root = __dirname;
 const dataDir = process.env.DATA_DIR || root;
 const dataFile = path.join(dataDir, "orders-data.json");
+const sessionsFile = path.join(dataDir, "table-sessions.json");
 let memoryOrders = [];
+let memorySessions = {};
 
 if (!fs.existsSync(dataDir)) {
   fs.mkdirSync(dataDir, { recursive: true });
@@ -28,6 +30,33 @@ function writeOrders(orders) {
   } catch (error) {
     console.warn(`Orders saved in memory only: ${error.message}`);
   }
+}
+
+function readSessions() {
+  try {
+    memorySessions = JSON.parse(fs.readFileSync(sessionsFile, "utf8"));
+    return memorySessions;
+  } catch {
+    return memorySessions;
+  }
+}
+
+function writeSessions(sessions) {
+  memorySessions = sessions;
+  try {
+    fs.writeFileSync(sessionsFile, JSON.stringify(sessions, null, 2));
+  } catch (error) {
+    console.warn(`Table sessions saved in memory only: ${error.message}`);
+  }
+}
+
+function getTableSession(table) {
+  const sessions = readSessions();
+  if (!sessions[table]) {
+    sessions[table] = `table-${table}-${Date.now()}`;
+    writeSessions(sessions);
+  }
+  return sessions[table];
 }
 
 function sendJson(res, status, data) {
@@ -85,6 +114,30 @@ const server = http.createServer(async (req, res) => {
       return sendJson(res, 200, readOrders());
     }
 
+    const tableSessionMatch = url.pathname.match(/^\/api\/tables\/(\d+)\/session$/);
+    if (tableSessionMatch && req.method === "GET") {
+      const table = Number(tableSessionMatch[1]);
+      return sendJson(res, 200, { table, sessionId: getTableSession(table) });
+    }
+
+    const tableCloseMatch = url.pathname.match(/^\/api\/tables\/(\d+)\/close$/);
+    if (tableCloseMatch && req.method === "POST") {
+      const table = Number(tableCloseMatch[1]);
+      const orders = readOrders();
+      const remaining = orders.filter(order => Number(order.table) !== table);
+      writeOrders(remaining);
+
+      const sessions = readSessions();
+      sessions[table] = `table-${table}-${Date.now()}`;
+      writeSessions(sessions);
+
+      return sendJson(res, 200, {
+        table,
+        removed: orders.length - remaining.length,
+        sessionId: sessions[table]
+      });
+    }
+
     if (url.pathname === "/api/orders" && req.method === "POST") {
       const order = await readBody(req);
       if (!Number.isInteger(Number(order.table)) || !Array.isArray(order.items) || order.items.length === 0) {
@@ -94,6 +147,7 @@ const server = http.createServer(async (req, res) => {
       const saved = {
         ...order,
         id: order.id || `${Date.now()}-${Math.random().toString(16).slice(2)}`,
+        sessionId: getTableSession(Number(order.table)),
         status: order.status || "Preparing",
         createdAt: order.createdAt || Date.now()
       };
